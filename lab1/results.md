@@ -9,5 +9,9 @@
 ### 2)
 ![image](https://user-images.githubusercontent.com/61240903/119347508-4a2c2e80-bca4-11eb-9ee1-4956781e2971.png)
 
+## Нахождение функции распределения F(y)
+![IMG_20210524_160047](https://user-images.githubusercontent.com/61240903/119351830-9c238300-bca9-11eb-9780-f6d5f93ac21b.jpg)
+
+
 
 

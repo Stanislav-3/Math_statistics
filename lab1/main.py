@@ -1,6 +1,10 @@
-import random
+import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider, Button
+matplotlib.use('Qt5Agg')
+
 import numpy as np
+import random
 from prettytable import PrettyTable
 
 
@@ -63,35 +67,62 @@ def F_y(y_):
         return 0.05 * y_ + 0.5
 
 
-def plot_F_y(y, add_analytical=False):
-    x_, y_ = [], []
-    p = 1 / len(y)
+def get_X_Y(y_):
+    X, Y = [-3], [0]
+    p = 1 / len(y_)
 
     i = 0
-    while i < len(y):
-        x_.append(y[i])
-        i += get_frequency(y, i)
-        y_.append(p * i)
+    while i < len(y_):
+        X.append(y_[i])
+        i += get_frequency(y_, i)
+        Y.append(p * i)
+    X.append(3)
+    Y.append(1)
+    return X, Y
 
-    plt.step([-3] + x_ + [3], [0, 0] + y_, label=f'Эмперическая ф-ия распределения (n = {n})')
 
+def update(val):
+    n_ = int(n_slider.val)
+    y_ = generate_y(n_)
+
+    F_x_line.set_data(*get_X_Y(y_))
+    fig.canvas.draw_idle()
+
+
+def plot_F_y(y_, add_analytical=False):
+    X, Y = get_X_Y(y_)
+
+    # For interactive tools
+    global fig, F_x_line, n_slider
+    fig, _ = plt.subplots()
+    plt.subplots_adjust(left=0.1, bottom=0.25)
+
+    # Analytical F(x)
     if add_analytical:
         ls = np.linspace(-3, 3, 6000)
         plt.plot(ls, [F_y(y_i) for y_i in ls], label='Аналитическая ф-ия распределения')
-        plt.suptitle('Сравнение аналитической и эмперической функции распредления F(y)')
+        plt.suptitle('Аналитическая и эмперическая функции распредления F(y)')
     else:
         plt.suptitle('Эмперическая функция распредления F(y)')
 
+    # Empirical F(x)
     plt.xlabel('y')
     plt.ylabel('F(y)')
     plt.legend()
+    F_x_line, = plt.step(X, Y, where='post', label=f'Эмперическая ф-ия распределения')
+
+    # Interactive tools
+    n_slider = Slider(ax=plt.axes([0.1, 0.15, 0.8, 0.03]), label='n = ', valmin=1, valmax=1000, valinit=n_init)
+    n_slider.on_changed(update)
+
+    button = Button(plt.axes([0.1, 0.05, 0.12, 0.05]), 'Generate')
+    button.on_clicked(update)
     plt.show()
 
 
 if __name__ == '__main__':
     a, b = -5, 5
-    n = 100
-    y = generate_y(n)
+    n_init = 10
+    y = generate_y(n_init)
     print_variation_range(y)
-    plot_F_y(y)
     plot_F_y(y, add_analytical=True)

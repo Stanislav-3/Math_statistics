@@ -110,18 +110,24 @@ def get_data_1(y_: list, n_: int, a_, b_, option: NormalizationOptions) -> list:
     if option == NormalizationOptions.TOTAL_HEIGHT_IS_ONE:
         for lh in left_bound_and_height:
             lh[1] /= len(y_)
-        # Why it's S = 4 / n ?
         S = 0
         for lh in left_bound_and_height:
-            S += M * lh[1]
+            S += lh[1]
         print(S)
 
     elif option == NormalizationOptions.TOTAL_AREA_IS_ONE:
         S = 0
+        o = 0
+        v = 0
         for lh in left_bound_and_height:
             S += M * lh[1]
         for lh in left_bound_and_height:
             lh[1] /= S
+            if lh[1] > 0.5:
+                continue
+            o += lh[1]
+            v += 1
+        print(o / v)
 
     elif option != NormalizationOptions.HEIGHT_IS_AMOUNT:
         raise TypeError(f'Option \'{option}\' is not defined...')
@@ -193,7 +199,8 @@ def plot_group_F(y_: list, n_: int) -> list:
 if __name__ == '__main__':
     n = 100000
     y = generate_y(n)
-    # plot_histogram_1(y, n, option=NormalizationOptions.HEIGHT_IS_AMOUNT)
+    m = 10000
+    plot_histogram_1(y, m, option=NormalizationOptions.TOTAL_AREA_IS_ONE)
     # plot_f(y, add_analytical=True)
-    plot_group_F(y, n)
+    # plot_group_F(y, n)
     # print(y)

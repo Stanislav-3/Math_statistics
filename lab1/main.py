@@ -82,9 +82,10 @@ def get_X_Y(y_):
 
 
 def update(val):
-    n_ = int(n_slider.val)
-    y_ = generate_y(n_)
+    n_ = int(round(n_slider.val))
+    print(f'{n_slider.val} | {int(round(n_slider.val))}')
 
+    y_ = generate_y(n_)
     F_x_line.set_data(*get_X_Y(y_))
     fig.canvas.draw_idle()
 

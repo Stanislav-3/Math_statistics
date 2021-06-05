@@ -54,50 +54,31 @@ def F_y(y_):
 def f_y(y_):
     if y_ < -2 or y_ > 2:
         return 0
-    # TODO: maybe infinity
     elif y_ == -2 or y_ == 2:
         return 0.4
     else:
         return 0.05
 
 
-# TODO: fix practical f(y)
-def plot_f(y, add_empirical=False, add_analytical=False):
-    x_, y_ = [-2.5, -2], [0, 0]
-    if add_empirical:
-        for i in range(len(y)):
-            y_i = y[i]
-            x_.append(y_i)
-            y_.append(f_y(y_i))
-
-        x_.extend([2, 2.5])
-        y_.extend([0, 0])
-        plt.plot(x_, y_, label=f'Эмперическая ф-ия плотности (n = {n})')
-
-    if add_analytical:
-        ls = np.linspace(-2.5, -2, 10000).tolist() \
-             + np.linspace(-2, 2, 10000).tolist() \
-             + np.linspace(2, 2.5, 10000).tolist()
-        plt.plot(ls, [f_y(y_i) for y_i in ls], label='Аналитическая ф-ия плотности')
-        plt.suptitle('Сравнение аналитической и эмперической функции плотности f(y)')
-    else:
-        plt.suptitle('Эмперическая функция плотности f(y)')
-
-    plt.xlabel('y')
-    plt.ylabel('f(y)')
-    plt.legend()
-    plt.show()
-
-
 class NormalizationOptions(enum.Enum):
     HEIGHT_IS_AMOUNT = 1,
     TOTAL_HEIGHT_IS_ONE = 2,
-    TOTAL_AREA_IS_ONE = 3
+    TOTAL_AREA_IS_ONE = 3,
+    TOTAL_AREA_IS_ONE_2 = 4,
+    f_x = 5,
+
+    CONTINUOUS_VALUE = 6,
+    MIXED_VALUE = 7
 
 
-def get_data_1(y_: list, n_: int, a_, b_, option: NormalizationOptions) -> list:
-    M = (b_ - a_) / n_
-    left_bound_and_height = [[a_ + i * M, 0] for i in range(n_)]
+class HistogramType(enum.Enum):
+    EQUIDISTANT_METHOD = 0,
+    EQUIPROBABLE_METHOD = 1
+
+
+def get_data_for_equidistant_method(y_: list, n_: int, a_, b_, option: NormalizationOptions) -> list:
+    dx = (b_ - a_) / n_
+    left_bound_and_height = [[a_ + i * dx, 0] for i in range(n_)]
 
     interval, i = 0, 0
     while i < len(y_):
@@ -108,26 +89,42 @@ def get_data_1(y_: list, n_: int, a_, b_, option: NormalizationOptions) -> list:
             interval += 1
 
     if option == NormalizationOptions.TOTAL_HEIGHT_IS_ONE:
+        h, h_n = 0, 0
         for lh in left_bound_and_height:
             lh[1] /= len(y_)
-        S = 0
-        for lh in left_bound_and_height:
-            S += lh[1]
-        print(S)
+
+            if lh[0] != -2 and lh[0] != 2 - dx:
+                h += lh[1]
+                h_n += 1
+        print('M[h ∈ (-2, 2)]', h / h_n)
 
     elif option == NormalizationOptions.TOTAL_AREA_IS_ONE:
         S = 0
-        o = 0
-        v = 0
+        h, h_n = 0, 0
         for lh in left_bound_and_height:
-            S += M * lh[1]
+            S += dx * lh[1]
+        print('*', S / dx)
         for lh in left_bound_and_height:
             lh[1] /= S
-            if lh[1] > 0.5:
-                continue
-            o += lh[1]
-            v += 1
-        print(o / v)
+            if lh[0] != -2 and lh[0] != 2 - dx:
+                h += lh[1]
+                h_n += 1
+        print('M[h ∈ (-2, 2)]', h / h_n)
+
+    elif option == NormalizationOptions.TOTAL_AREA_IS_ONE_2:
+        h, h_n = 0, 0
+        for lh in left_bound_and_height:
+            lh[1] /= (len(y_) * dx)
+
+            if lh[0] != -2 and lh[0] != 2 - dx:
+                h += lh[1]
+                h_n += 1
+        print('M[h ∈ (-2, 2)]', h / h_n)
+
+    elif option == NormalizationOptions.f_x:
+        for lh in left_bound_and_height:
+            lh[1] /= (len(y_) * dx)
+        left_bound_and_height = [[-2, 0.4]] + left_bound_and_height[1:-1] + [[2, 0.4]]
 
     elif option != NormalizationOptions.HEIGHT_IS_AMOUNT:
         raise TypeError(f'Option \'{option}\' is not defined...')
@@ -135,15 +132,69 @@ def get_data_1(y_: list, n_: int, a_, b_, option: NormalizationOptions) -> list:
     return left_bound_and_height
 
 
-# TODO: Improve normalization
-def plot_histogram_1(y_, n_, a_=-2.5, b_=2.5,
-                     option: NormalizationOptions = NormalizationOptions.TOTAL_AREA_IS_ONE):
-    left_bound_and_height = get_data_1(y_, n_, a_=-2, b_=2, option=option)
+def get_data_for_equiprobable_method(y_: list, n_: int, a_, b_, option: NormalizationOptions) -> list:
+    left_bound_and_height = [[a_, None]]
+    y_ = remove_discrete_points(y_)
+
+    obligatory = len(y_) // n_
+    additional = len(y_) % n_
+
+    S = 0
+    i, interval = 0, 0
+    while interval < n_:
+        if additional:
+            additional -= 1
+            amount = obligatory + 1
+        else:
+            amount = obligatory
+
+        i += amount
+
+        if interval == n_ - 1 or i > len(y_):
+            r = 2
+        else:
+            r = (y_[i] + y_[i - 1]) / 2
+            left_bound_and_height.append([r, None])
+
+        dx = r - left_bound_and_height[interval][0]
+
+        h = amount / dx
+        left_bound_and_height[interval][1] = h
+        S += h * dx
+        if r == 2:
+            break
+        interval += 1
+
+    for lh in left_bound_and_height:
+        lh[1] /= S * 5
+
+    if option == option.CONTINUOUS_VALUE:
+        left_bound_and_height = [[-2, 0.4]] + left_bound_and_height + [[2, 0.4]]
+    elif option == option.MIXED_VALUE:
+        left_bound_and_height = [[-2, float("inf")]] + left_bound_and_height + [[2, float('inf')]]
+    else:
+        raise TypeError(f'Option \'{option}\' is not defined...')
+
+    return left_bound_and_height
+
+
+def plot_histogram(y_, n_, a_=-2.5, b_=2.5,
+                   hist_type: HistogramType = HistogramType.EQUIDISTANT_METHOD,
+                   option: NormalizationOptions = NormalizationOptions.HEIGHT_IS_AMOUNT):
+
+    if hist_type == HistogramType.EQUIDISTANT_METHOD:
+        left_bound_and_height = get_data_for_equidistant_method(y_, n_, a_=-2, b_=2, option=option)
+        method_name = 'равноинтервальный'
+    elif hist_type == HistogramType.EQUIPROBABLE_METHOD:
+        left_bound_and_height = get_data_for_equiprobable_method(y_, n_, a_=-2, b_=2, option=option)
+        method_name = 'равновероятностный'
+    else:
+        raise Exception('Invalid method')
 
     # Plotting histogram:
     plt.step([a_] + [info[0] for info in left_bound_and_height] + [2, b_],
              [0] + [info[1] for info in left_bound_and_height] + [0, 0],
-             where='post', label='Гистограмма (равноинтервальный метод)')
+             where='post', label=f'Гистограмма ({method_name} метод)')
 
     # Plotting polygon:
     middles = []
@@ -165,7 +216,7 @@ def plot_histogram_1(y_, n_, a_=-2.5, b_=2.5,
 
 
 def get_accumulated_group_data(y_: list, n_: int) -> list:
-    left_bound_and_height = get_data_1(y_, n_, a_=-2, b_=2, option=NormalizationOptions.TOTAL_HEIGHT_IS_ONE)
+    left_bound_and_height = get_data_for_equidistant_method(y_, n_, a_=-2, b_=2, option=NormalizationOptions.TOTAL_HEIGHT_IS_ONE)
 
     for i in range(len(left_bound_and_height) - 1):
         left_bound_and_height[i + 1][1] += left_bound_and_height[i][1]
@@ -196,11 +247,35 @@ def plot_group_F(y_: list, n_: int) -> list:
     plt.show()
 
 
+def remove_discrete_points(y_):
+    discrete_points = (-2, 2)
+    continuous_points = []
+
+    for val in y_:
+        if val not in discrete_points:
+            continuous_points.append(val)
+
+    return continuous_points
+
+
+def check(l):
+    S = 0
+    for i in range(len(l)):
+        left = l[i][0]
+        right = l[i + 1][0] if len(l) != i + 1 else 2
+        dx = right - left
+        S += dx * l[i][1]
+
+    print('S = ', S)
+
 if __name__ == '__main__':
-    n = 100000
+    n = 10
+    m = 1000
     y = generate_y(n)
-    m = 10000
-    plot_histogram_1(y, m, option=NormalizationOptions.TOTAL_AREA_IS_ONE)
+    plot_histogram(y, m,
+                   hist_type=HistogramType.EQUIDISTANT_METHOD,
+                   option=NormalizationOptions.f_x)
+
+    # plot_histogram_2(y, m)
     # plot_f(y, add_analytical=True)
     # plot_group_F(y, n)
-    # print(y)
